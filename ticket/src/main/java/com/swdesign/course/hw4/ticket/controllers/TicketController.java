@@ -13,7 +13,7 @@ import java.util.UUID;
 
 @RestController
 @RequestMapping(path = "/tickets")
-public class        TicketController {
+public class TicketController {
 
     TicketService ticketService;
     JwtProvider jwtProvider;

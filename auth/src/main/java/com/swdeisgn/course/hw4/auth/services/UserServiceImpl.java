@@ -22,6 +22,7 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
 import java.sql.Timestamp;
+import java.util.Date;
 import java.util.List;
 import java.util.UUID;
 
@@ -33,17 +34,14 @@ public class UserServiceImpl implements UserDetailsService, UserService {
     private final UserEntityToUserDtoMapper userEntityToUserDtoMapper;
     private final RegisterDtoToUserEntityMapper registerDtoToUserEntityMapper;
     private final SessionEntityToSessionDtoMapper sessionEntityToSessionDtoMapper;
-    JwtProvider jwtProvider;
 
-
-    public UserServiceImpl(UserRepository userRepository, SessionRepository sessionRepository, PasswordEncoder passwordEncoder, UserEntityToUserDtoMapper userEntityToUserDtoMapper, RegisterDtoToUserEntityMapper registerDtoToUserEntityMapper, SessionEntityToSessionDtoMapper sessionEntityToSessionDtoMapper, JwtProvider jwtProvider) {
+    public UserServiceImpl(UserRepository userRepository, SessionRepository sessionRepository, PasswordEncoder passwordEncoder, UserEntityToUserDtoMapper userEntityToUserDtoMapper, RegisterDtoToUserEntityMapper registerDtoToUserEntityMapper, SessionEntityToSessionDtoMapper sessionEntityToSessionDtoMapper) {
         this.userRepository = userRepository;
         this.sessionRepository = sessionRepository;
         this.passwordEncoder = passwordEncoder;
         this.userEntityToUserDtoMapper = userEntityToUserDtoMapper;
         this.registerDtoToUserEntityMapper = registerDtoToUserEntityMapper;
         this.sessionEntityToSessionDtoMapper = sessionEntityToSessionDtoMapper;
-        this.jwtProvider = jwtProvider;
     }
 
     @Override
@@ -62,14 +60,22 @@ public class UserServiceImpl implements UserDetailsService, UserService {
     }
 
     @Override
-    public SessionDto createSession(String email) {
-        UserEntity userEntity = userRepository.findByEmail(email).get();
+    public UserDto getUserByEmail(String email) {
+        UserEntity userEntity = userRepository.findByEmail(email).orElseThrow(UserNotFoundException::new);
 
-        String token = jwtProvider.generateToken(userEntity.getId());
+        return userEntityToUserDtoMapper.map(userEntity);
+    }
 
-        Timestamp expires = new Timestamp(jwtProvider.getExpirationDateFromToken(token).getTime());
+    @Override
+    public SessionDto createSession(UUID user_id, String token, Date expires) {
+        UserEntity userEntity = userRepository.findById(user_id).orElseThrow(UserNotFoundException::new);
 
-        SessionEntity sessionEntity = SessionEntity.builder().user(userEntity).token(token).expires(expires).build();
+        SessionEntity sessionEntity = SessionEntity.builder()
+                .user(userEntity)
+                .token(token)
+                .expires(new Timestamp(expires.getTime()))
+                .build();
+
         sessionRepository.save(sessionEntity);
 
         return sessionEntityToSessionDtoMapper.map(sessionEntity);
